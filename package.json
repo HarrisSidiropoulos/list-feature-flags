@@ -1,0 +1,20 @@
+{
+  "name": "list-feature-flags",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "bin": {
+    "list-feature-flags": "./index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "Harris Sidiropoulos",
+  "license": "ISC",
+  "dependencies": {
+    "glob2": "^7.0.6",
+    "lodash": "^4.17.21",
+    "minimist": "^1.2.8"
+  }
+}
