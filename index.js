@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const path = require('path');
 const glob = require('glob');
 const minimist = require('minimist');
 const _ = require('lodash');
@@ -70,6 +69,7 @@ const main = () => {
         .toLowerCase()
         .replace(mode === 'featureFlags' ? /_feature$/ : /_experiment$/, '')
         .replace(mode === 'featureFlags' ? /^f/ : /^e/, `_${mode === 'featureFlags' ? 'f' : 'e'}`)
+        .replace(/^_/g, '')
   );
 
   // sort and remove duplicates
