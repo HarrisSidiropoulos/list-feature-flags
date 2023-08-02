@@ -13,18 +13,18 @@ const argv = minimist(process.argv.slice(2));
 const searchPattern = '**/*.{js,ts,jsx,tsx}';
 const excludeDirs = ['**/test/**', '**/__mocks__/**', '**/node_modules/**'];
 
-// define the regex patterns for feature flags
-const regexPatterns = [
-  /\bf_\w*\b/g, 
-  /\bF\w*Feature\b/g
-];
+// define the regex patterns for feature flags and experiments
+const regexPatterns = {
+  featureFlags: [/\bf_\w*\b/g, /\bF\w*Feature\b/g],
+  experiments: [/\be_\w*\b/g, /\bE\w*Experiment\b/g]
+};
 
 // helper function to process a file
-const processFile = (filePath) => {
+const processFile = (filePath, patterns) => {
   const content = fs.readFileSync(filePath, 'utf8');
   let flags = [];
   
-  regexPatterns.forEach((pattern) => {
+  patterns.forEach((pattern) => {
     const matches = content.match(pattern);
     if (matches) {
       flags = flags.concat(matches);
@@ -35,7 +35,7 @@ const processFile = (filePath) => {
 };
 
 // helper function to process a directory
-const processDirectory = (dirPath) => {
+const processDirectory = (dirPath, patterns) => {
   const filePaths = glob.sync(searchPattern, { 
     cwd: dirPath,
     ignore: excludeDirs,
@@ -44,7 +44,7 @@ const processDirectory = (dirPath) => {
   
   let flags = [];
   filePaths.forEach((filePath) => {
-    flags = flags.concat(processFile(filePath));
+    flags = flags.concat(processFile(filePath, patterns));
   });
   
   return flags;
@@ -53,23 +53,39 @@ const processDirectory = (dirPath) => {
 // main function
 const main = () => {
   const dirPath = argv._[0] || '.';
-  let flags = processDirectory(dirPath);
 
-  // apply transformations to flag names
-  flags = flags.map(flag => 
+  // Process feature flags
+  let featureFlags = processDirectory(dirPath, regexPatterns.featureFlags);
+  featureFlags = featureFlags.map(flag => 
     flag.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
         .toLowerCase()
         .replace(/^./, '$&_')
         .replace(/_[^_]*$/, '')
+        .replace(/^f/, 'f_')
         .replace(/__/g, '')
-        .replace(/^far_/, 'f_ar_')
+  );
+
+  // Process experiments
+  let experiments = processDirectory(dirPath, regexPatterns.experiments);
+  experiments = experiments.map(exp => 
+    exp.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+       .toLowerCase()
+       .replace(/^./, '$&_')
+       .replace(/_[^_]*$/, '')
+       .replace(/^e/, 'e_')
+       .replace(/__/g, '')
   );
 
   // sort and remove duplicates
-  flags = _.sortBy(_.uniq(flags));
+  featureFlags = _.sortBy(_.uniq(featureFlags));
+  experiments = _.sortBy(_.uniq(experiments));
 
   // output the flags
-  flags.forEach(flag => console.log(flag));
+  console.log("Feature Flags:");
+  featureFlags.forEach(flag => console.log(flag));
+
+  console.log("\nExperiments:");
+  experiments.forEach(exp => console.log(exp));
 };
 
 main();
