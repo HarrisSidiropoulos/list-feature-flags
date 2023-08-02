@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const glob = require('glob2');
+const glob = require('glob');
 const minimist = require('minimist');
 const _ = require('lodash');
 
@@ -53,39 +53,31 @@ const processDirectory = (dirPath, patterns) => {
 // main function
 const main = () => {
   const dirPath = argv._[0] || '.';
+  const mode = argv.mode || 'featureFlags'; // default mode is featureFlags
 
-  // Process feature flags
-  let featureFlags = processDirectory(dirPath, regexPatterns.featureFlags);
-  featureFlags = featureFlags.map(flag => 
+  // Validate mode
+  if (!['featureFlags', 'experiments'].includes(mode)) {
+    console.error('Invalid mode! Please select either "featureFlags" or "experiments".');
+    process.exit(1);
+  }
+
+  // Process flags
+  let flags = processDirectory(dirPath, regexPatterns[mode]);
+
+  // Apply transformations
+  flags = flags.map(flag => 
     flag.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
         .toLowerCase()
-        .replace(/^./, '$&_')
-        .replace(/_[^_]*$/, '')
-        .replace(/^f/, 'f_')
-        .replace(/__/g, '')
-  );
-
-  // Process experiments
-  let experiments = processDirectory(dirPath, regexPatterns.experiments);
-  experiments = experiments.map(exp => 
-    exp.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-       .toLowerCase()
-       .replace(/^./, '$&_')
-       .replace(/_[^_]*$/, '')
-       .replace(/^e/, 'e_')
-       .replace(/__/g, '')
+        .replace(mode === 'featureFlags' ? /_feature$/ : /_experiment$/, '')
+        .replace(mode === 'featureFlags' ? /^f/ : /^e/, `_${mode === 'featureFlags' ? 'f' : 'e'}`)
   );
 
   // sort and remove duplicates
-  featureFlags = _.sortBy(_.uniq(featureFlags));
-  experiments = _.sortBy(_.uniq(experiments));
+  flags = _.sortBy(_.uniq(flags));
 
   // output the flags
-  console.log("Feature Flags:");
-  featureFlags.forEach(flag => console.log(flag));
-
-  console.log("\nExperiments:");
-  experiments.forEach(exp => console.log(exp));
+  console.log(`${mode.charAt(0).toUpperCase() + mode.slice(1)}:`);
+  flags.forEach(flag => console.log(flag));
 };
 
 main();
