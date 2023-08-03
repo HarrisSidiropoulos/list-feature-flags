@@ -2,80 +2,98 @@
 
 const fs = require('fs');
 const glob = require('glob');
-const minimist = require('minimist');
-const _ = require('lodash');
+const commandLineArgs = require('minimist');
+const lodash = require('lodash');
 
-// get command line arguments
-const argv = minimist(process.argv.slice(2));
+// Retrieve command line arguments
+const args = commandLineArgs(process.argv.slice(2));
 
-// define the search pattern and exclude directories
-const searchPattern = '**/*.{js,ts,jsx,tsx}';
-const excludeDirs = ['**/test/**', '**/__mocks__/**', '**/node_modules/**'];
-
-// define the regex patterns for feature flags and experiments
-const regexPatterns = {
-  featureFlags: [/\bf_\w*\b/g, /\bF\w*Feature\b/g],
-  experiments: [/\be_\w*\b/g, /\bE\w*Experiment\b/g]
+const MODES = {
+  FEATURE_FLAGS: 'featureFlags',
+  EXPERIMENTS: 'experiments'
 };
 
-// helper function to process a file
+// Set the search pattern and directories to exclude
+const SEARCH_PATTERN = '**/*.{js,ts,jsx,tsx}';
+const EXCLUDED_DIRECTORIES = ['**/test/**', '**/__mocks__/**', '**/node_modules/**'];
+
+// Set the regex patterns for feature flags and experiments
+const REGEX_PATTERNS = {
+  [MODES.FEATURE_FLAGS]: [/\bf_\w*\b/g, /\bF\w*Feature\b/g],
+  [MODES.EXPERIMENTS]: [/\be_\w*\b/g, /\bE\w*Experiment\b/g]
+};
+
+const applyTransformation = (flag, mode) => {
+  switch(mode) {
+    case MODES.FEATURE_FLAGS:
+      return flag.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+                 .toLowerCase()
+                 .replace(/_feature$/, '')
+                 .replace(/^f/, '_f')
+                 .replace(/^_/, '');
+    case MODES.EXPERIMENTS:
+      return flag.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+                 .toLowerCase()
+                 .replace(/_experiment$/, '')
+                 .replace(/^e/, '_e')
+                 .replace(/^_/, '');
+    default:
+      return flag;
+  }
+};
+
+// Function to process a file
 const processFile = (filePath, patterns) => {
-  const content = fs.readFileSync(filePath, 'utf8');
+  const fileContent = fs.readFileSync(filePath, 'utf8');
   let flags = [];
   
   patterns.forEach((pattern) => {
-    const matches = content.match(pattern);
+    const matches = fileContent.match(pattern);
     if (matches) {
-      flags = flags.concat(matches);
+      flags = [...flags, ...matches];
     }
   });
   
   return flags;
 };
 
-// helper function to process a directory
-const processDirectory = (dirPath, patterns) => {
-  const filePaths = glob.sync(searchPattern, { 
-    cwd: dirPath,
-    ignore: excludeDirs,
+// Function to process a directory
+const processDirectory = (directoryPath, patterns) => {
+  const filePaths = glob.sync(SEARCH_PATTERN, { 
+    cwd: directoryPath,
+    ignore: EXCLUDED_DIRECTORIES,
     absolute: true 
   });
   
   let flags = [];
   filePaths.forEach((filePath) => {
-    flags = flags.concat(processFile(filePath, patterns));
+    flags = [...flags, ...processFile(filePath, patterns)];
   });
   
   return flags;
 };
 
-// main function
+// Main function
 const main = () => {
-  const dirPath = argv._[0] || '.';
-  const mode = argv.mode || 'featureFlags'; // default mode is featureFlags
+  const directoryPath = args._[0] || '.';
+  const mode = args.mode || MODES.FEATURE_FLAGS; // Default mode is featureFlags
 
   // Validate mode
-  if (!['featureFlags', 'experiments'].includes(mode)) {
-    console.error('Invalid mode! Please select either "featureFlags" or "experiments".');
+  if (!Object.values(MODES).includes(mode)) {
+    console.error(`Invalid mode! Please select either "${MODES.FEATURE_FLAGS}" or "${MODES.EXPERIMENTS}".`);
     process.exit(1);
   }
 
   // Process flags
-  let flags = processDirectory(dirPath, regexPatterns[mode]);
+  let flags = processDirectory(directoryPath, REGEX_PATTERNS[mode]);
 
   // Apply transformations
-  flags = flags.map(flag => 
-    flag.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-        .toLowerCase()
-        .replace(mode === 'featureFlags' ? /_feature$/ : /_experiment$/, '')
-        .replace(mode === 'featureFlags' ? /^f/ : /^e/, `_${mode === 'featureFlags' ? 'f' : 'e'}`)
-        .replace(/^_/g, '')
-  );
+  flags = flags.map(flag => applyTransformation(flag, mode));
 
-  // sort and remove duplicates
-  flags = _.sortBy(_.uniq(flags));
+  // Sort and remove duplicates
+  flags = lodash.sortBy(lodash.uniq(flags));
 
-  // output the flags
+  // Display the flags
   console.log(`${mode.charAt(0).toUpperCase() + mode.slice(1)}:`);
   flags.forEach(flag => console.log(flag));
 };
