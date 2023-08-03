@@ -29,14 +29,12 @@ const applyTransformation = (flag, mode) => {
       return flag.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
                  .toLowerCase()
                  .replace(/_feature$/, '')
-                 .replace(/^f/, '_f')
-                 .replace(/^_/, '');
+                 .replace(/^far/, 'f_ar')
     case MODES.EXPERIMENTS:
       return flag.replace(/([a-z0-9])([A-Z])/g, '$1_$2')
                  .toLowerCase()
                  .replace(/_experiment$/, '')
-                 .replace(/^e/, '_e')
-                 .replace(/^_/, '');
+                 .replace(/^ear/, 'e_ar')
     default:
       return flag;
   }
